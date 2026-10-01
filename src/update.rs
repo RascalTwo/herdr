@@ -2105,8 +2105,17 @@ fn homebrew_cellar_keg_root(path: &Path) -> Option<PathBuf> {
 // Public API
 // ---------------------------------------------------------------------------
 
+/// Fork: a stock download would silently replace this build and drop its patches, and upstream
+/// releases are not updates for it. Pinned by `updates_are_off_in_this_fork`.
+const UPDATES_ENABLED: bool = false;
+
 /// Manual self-update command (`herdr update`).
 pub fn self_update(options: SelfUpdateOptions) -> Result<Version, String> {
+    if !UPDATES_ENABLED {
+        return Err(
+            "updates are disabled in this fork; run scripts/update-from-upstream.sh".into(),
+        );
+    }
     let channel = UpdateChannel::configured();
 
     if is_homebrew_managed_install() {
@@ -2346,6 +2355,9 @@ fn print_outdated_integration_notice_with_updated_binary(updated_exe: &Path) {
 /// Background update check: only surface availability and release notes.
 /// Runs in a background thread at startup.
 pub fn auto_update(events: tokio::sync::mpsc::Sender<crate::events::AppEvent>) {
+    if !UPDATES_ENABLED {
+        return;
+    }
     crate::logging::update_check_started();
     if let Ok(version) = env::var(FAKE_UPDATE_VERSION_ENV) {
         let version = version.trim();
@@ -2502,6 +2514,16 @@ fn platform_target() -> (&'static str, &'static str) {
 
 #[cfg(all(test, unix))]
 mod tests {
+    #[test]
+    fn updates_are_off_in_this_fork() {
+        assert!(
+            !UPDATES_ENABLED,
+            "a stock download would replace the fork's patches"
+        );
+        let err = self_update(SelfUpdateOptions::default()).unwrap_err();
+        assert!(err.contains("disabled in this fork"), "{err}");
+    }
+
     use super::*;
     use std::os::unix::net::UnixListener;
     use std::sync::{

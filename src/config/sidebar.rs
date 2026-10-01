@@ -11,6 +11,18 @@ use crate::detect::Agent;
 const MAX_SIDEBAR_ROWS: usize = 16;
 const MAX_SIDEBAR_TOKENS_PER_ROW: usize = 16;
 const DEFAULT_SIDEBAR_ROW_GAP: u16 = 0;
+pub const DEFAULT_SIDEBAR_SEPARATOR: &str = " · ";
+const DEFAULT_AGENT_CONTINUATION_INDENT: u16 = 3;
+
+/// Control characters would corrupt the terminal, and width math assumes printable text.
+fn deserialize_separator<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    Ok(String::deserialize(deserializer)?
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect())
+}
 
 fn deserialize_sidebar_rows<'de, D, T>(deserializer: D) -> Result<Vec<Vec<T>>, D::Error>
 where
@@ -427,6 +439,9 @@ pub struct AgentsSidebarConfig {
     #[serde(default, deserialize_with = "deserialize_rows_by_agent")]
     pub rows_by_agent: BTreeMap<String, AgentSidebarRows>,
     pub row_gap: u16,
+    #[serde(deserialize_with = "deserialize_separator")]
+    pub separator: String,
+    pub continuation_indent: u16,
 }
 
 impl AgentsSidebarConfig {
@@ -451,6 +466,8 @@ impl Default for AgentsSidebarConfig {
             ],
             rows_by_agent: BTreeMap::new(),
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
+            separator: DEFAULT_SIDEBAR_SEPARATOR.into(),
+            continuation_indent: DEFAULT_AGENT_CONTINUATION_INDENT,
         }
     }
 }

@@ -1055,6 +1055,18 @@
           ]
         },
         {
+          "key": "ui.sidebar.agents.continuation_indent",
+          "type": "integer",
+          "default": "3",
+          "description": "Leading spaces before the second and later rows of an expanded Agent sidebar entry (the first row is always indented one). Fork-only."
+        },
+        {
+          "key": "ui.sidebar.agents.separator",
+          "type": "string",
+          "default": "\" · \"",
+          "description": "Text between adjacent tokens in an expanded Agent sidebar row. A state_icon is always followed by a single space. Control characters are dropped. Fork-only."
+        },
+        {
           "key": "ui.sidebar.agents.row_gap",
           "type": "integer",
           "default": "0",

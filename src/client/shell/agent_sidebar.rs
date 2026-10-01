@@ -354,7 +354,11 @@ pub(super) fn render_agent_row(
         row.rows.clone()
     };
     for (index, tokens) in rows.iter().take(rect.height as usize).enumerate() {
-        let indent = if index == 0 { 1 } else { 3 };
+        let indent = if index == 0 {
+            1
+        } else {
+            config.agents.continuation_indent as usize
+        };
         let mut spans = vec![ratatui::text::Span::raw(" ".repeat(indent))];
         spans.extend(crate::ui::resolved_token_spans(
             tokens,
@@ -365,6 +369,7 @@ pub(super) fn render_agent_row(
             secondary,
             palette,
             rect.width.saturating_sub(indent as u16) as usize,
+            &config.agents.separator,
         ));
         Paragraph::new(Line::from(spans)).style(row_style).render(
             Rect::new(rect.x, rect.y + index as u16, rect.width, 1),

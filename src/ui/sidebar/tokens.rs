@@ -177,13 +177,17 @@ pub(crate) fn space_rows(
         .collect()
 }
 
-pub(crate) fn separator(previous: &ResolvedToken, current: &ResolvedToken) -> &'static str {
+pub(crate) fn separator<'a>(
+    previous: &ResolvedToken,
+    current: &ResolvedToken,
+    between: &'a str,
+) -> &'a str {
     if matches!(previous.kind, ResolvedTokenKind::StateIcon)
         || matches!(current.kind, ResolvedTokenKind::GitStatus { .. })
     {
         " "
     } else {
-        " · "
+        between
     }
 }
 
@@ -283,6 +287,7 @@ rows = [[{ token = "workspace", rules = [{ equals = "long-workspace-name", fg = 
                 theme,
                 &super::super::Palette::catppuccin(),
                 width,
+                crate::config::DEFAULT_SIDEBAR_SEPARATOR,
             );
             assert_eq!(spans.len(), 1);
             assert!(super::super::display_width(&spans[0].content) <= width);
@@ -583,5 +588,58 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
                 "2 changes".into()
             ))]]
         );
+    }
+
+    #[test]
+    fn configured_separator_replaces_only_the_between_token_default() {
+        let icon = ResolvedToken::unstyled(ResolvedTokenKind::StateIcon);
+        let a = ResolvedToken::unstyled(ResolvedTokenKind::Custom("1".into()));
+        let b = ResolvedToken::unstyled(ResolvedTokenKind::Custom("2".into()));
+        assert_eq!(
+            separator(&icon, &a, ""),
+            " ",
+            "state_icon always gets one space"
+        );
+        assert_eq!(separator(&a, &b, " · "), " · ");
+        assert_eq!(separator(&a, &b, ""), "");
+    }
+
+    #[test]
+    fn separator_and_continuation_indent_default_to_stock_and_drop_control_chars() {
+        let stock = AgentsSidebarConfig::default();
+        assert_eq!(stock.separator, " · ");
+        assert_eq!(stock.continuation_indent, 3);
+        let custom: AgentsSidebarConfig =
+            toml::from_str("separator = \" \\u001b|\"\ncontinuation_indent = 0").unwrap();
+        assert_eq!(custom.separator, " |");
+        assert_eq!(custom.continuation_indent, 0);
+    }
+
+    #[test]
+    fn rendered_row_uses_the_configured_separator() {
+        let tokens = vec![
+            ResolvedToken::unstyled(ResolvedTokenKind::Custom("142k".into())),
+            ResolvedToken::unstyled(ResolvedTokenKind::Custom("42m".into())),
+        ];
+        let style = ratatui::style::Style::default();
+        let render = |between: &str| {
+            super::super::resolved_token_spans(
+                &tokens,
+                ("*", style),
+                style,
+                style,
+                style,
+                style,
+                &super::super::Palette::catppuccin(),
+                40,
+                between,
+            )
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect::<String>()
+        };
+        assert_eq!(render(" · "), "142k · 42m");
+        assert_eq!(render(" "), "142k 42m");
+        assert_eq!(render(""), "142k42m");
     }
 }

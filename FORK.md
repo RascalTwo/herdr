@@ -60,6 +60,22 @@ manifest updater is separate and left on.)
 - Tests: **`cargo nextest run --locked`** (`brew install cargo-nextest`). Plain `cargo test` dies
   with a SIGPIPE partway through; the repo's own `just test` uses nextest.
 
+## Installing
+
+```sh
+install -m 755 target/release/herdr ~/.local/bin/herdr
+```
+
+`~/.local/bin` comes before `/opt/homebrew/bin` on PATH, so this shadows the Homebrew `herdr` without
+touching it; `rm ~/.local/bin/herdr` goes back. Then detach and run `herdr` again to reattach.
+
+The server does **not** need restarting: the sidebar is drawn by the client, and a newer client
+attaches to an older running server (`herdr status` says `endpoint_compatible: yes`,
+`restart_needed: no`). A server still on an older version warns `unknown config key
+ui.sidebar.agents.*` on `herdr server reload-config` and ignores the keys; only stop it
+(`herdr server stop`, which ends every pane) when you want server-side changes from a newer build.
+Re-run the `install` line after each `scripts/update-from-upstream.sh`.
+
 ## Keeping up with upstream
 
 ```sh

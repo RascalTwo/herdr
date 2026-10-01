@@ -12,6 +12,7 @@ const MAX_SIDEBAR_ROWS: usize = 16;
 const MAX_SIDEBAR_TOKENS_PER_ROW: usize = 16;
 const DEFAULT_SIDEBAR_ROW_GAP: u16 = 0;
 pub const DEFAULT_SIDEBAR_SEPARATOR: &str = " · ";
+const DEFAULT_AGENT_INDENT: u16 = 1;
 const DEFAULT_AGENT_CONTINUATION_INDENT: u16 = 3;
 
 /// Control characters would corrupt the terminal, and width math assumes printable text.
@@ -441,6 +442,7 @@ pub struct AgentsSidebarConfig {
     pub row_gap: u16,
     #[serde(deserialize_with = "deserialize_separator")]
     pub separator: String,
+    pub indent: u16,
     pub continuation_indent: u16,
 }
 
@@ -467,6 +469,7 @@ impl Default for AgentsSidebarConfig {
             rows_by_agent: BTreeMap::new(),
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
             separator: DEFAULT_SIDEBAR_SEPARATOR.into(),
+            indent: DEFAULT_AGENT_INDENT,
             continuation_indent: DEFAULT_AGENT_CONTINUATION_INDENT,
         }
     }

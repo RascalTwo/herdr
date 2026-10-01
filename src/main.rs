@@ -349,7 +349,8 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # row_gap = 0
 # Text between adjacent tokens in a row (fork-only). A state_icon is always followed by one space.
 # separator = " · "
-# Leading spaces before the second and later rows (fork-only); the first row is indented 1.
+# Leading spaces before the first row, and before the second and later rows (fork-only).
+# indent = 1
 # continuation_indent = 3
 # rows = [["state_icon", "machine", "workspace", "tab"], ["agent"]]
 # Optional canonical agent IDs replace the default rows for matching agents.

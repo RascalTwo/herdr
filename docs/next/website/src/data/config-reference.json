@@ -1058,7 +1058,13 @@
           "key": "ui.sidebar.agents.continuation_indent",
           "type": "integer",
           "default": "3",
-          "description": "Leading spaces before the second and later rows of an expanded Agent sidebar entry (the first row is always indented one). Fork-only."
+          "description": "Leading spaces before the second and later rows of an expanded Agent sidebar entry. Fork-only."
+        },
+        {
+          "key": "ui.sidebar.agents.indent",
+          "type": "integer",
+          "default": "1",
+          "description": "Leading spaces before the first row of an expanded Agent sidebar entry. Fork-only."
         },
         {
           "key": "ui.sidebar.agents.separator",

@@ -13,17 +13,19 @@ makes these configurable itself — then delete the matching patch.
 | | Upstream | Here |
 | --- | --- | --- |
 | `[ui.sidebar.agents] separator` | hardcoded `" · "` between tokens | **configurable**, default `" · "` |
-| `[ui.sidebar.agents] continuation_indent` | hardcoded `3` | **configurable**, default `3` |
+| `[ui.sidebar.agents] indent` | hardcoded `1` (first row) | **configurable**, default `1` |
+| `[ui.sidebar.agents] continuation_indent` | hardcoded `3` (later rows) | **configurable**, default `3` |
 | `herdr update` / update notices | on | **off** — a stock download would replace this build |
 
 Defaults reproduce stock behaviour exactly, so an unconfigured fork looks like upstream.
 
-## Patch: sidebar separator and indent
+## Patch: sidebar separator and indents
 
 ```toml
 [ui.sidebar.agents]
 separator = " "              # text between adjacent tokens; "" for none
-continuation_indent = 1      # leading spaces on the 2nd+ rows (the first row is always 1)
+indent = 0                   # leading spaces on the first row
+continuation_indent = 0      # leading spaces on the 2nd+ rows
 ```
 
 - A `state_icon` is still always followed by a single space, whatever `separator` is.
@@ -34,9 +36,9 @@ continuation_indent = 1      # leading spaces on the 2nd+ rows (the first row is
   ` · ` the config could not touch — see `tools/statusline` in the ai-setup repo, which pushes
   per-pane tokens (`ctx_*`, `cache_*`) into a second row.
 
-Files: `src/config/sidebar.rs` (the two keys), `src/ui/sidebar/tokens.rs` (`separator()` takes the
+Files: `src/config/sidebar.rs` (the three keys), `src/ui/sidebar/tokens.rs` (`separator()` takes the
 string), `src/ui/sidebar.rs` (`resolved_token_spans` takes it), `src/client/shell/agent_sidebar.rs`
-(passes the config, and the indent), `src/client/shell/sidebar.rs` (Spaces passes the default),
+(passes the config and both indents), `src/client/shell/sidebar.rs` (Spaces passes the default),
 `src/config.rs` (re-export), plus `src/main.rs` template and
 `docs/next/website/src/data/config-reference.json` so `scripts/config_reference_check.py` stays green.
 The config rides in the already-cloned `agents` struct, so client reload needed no changes.

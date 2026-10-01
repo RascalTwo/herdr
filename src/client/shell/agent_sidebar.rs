@@ -355,7 +355,7 @@ pub(super) fn render_agent_row(
     };
     for (index, tokens) in rows.iter().take(rect.height as usize).enumerate() {
         let indent = if index == 0 {
-            1
+            config.agents.indent as usize
         } else {
             config.agents.continuation_indent as usize
         };

@@ -608,10 +608,13 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
     fn separator_and_continuation_indent_default_to_stock_and_drop_control_chars() {
         let stock = AgentsSidebarConfig::default();
         assert_eq!(stock.separator, " · ");
+        assert_eq!(stock.indent, 1);
         assert_eq!(stock.continuation_indent, 3);
         let custom: AgentsSidebarConfig =
-            toml::from_str("separator = \" \\u001b|\"\ncontinuation_indent = 0").unwrap();
+            toml::from_str("separator = \" \\u001b|\"\nindent = 0\ncontinuation_indent = 0")
+                .unwrap();
         assert_eq!(custom.separator, " |");
+        assert_eq!(custom.indent, 0);
         assert_eq!(custom.continuation_indent, 0);
     }
 

@@ -15,6 +15,7 @@ makes these configurable itself — then delete the matching patch.
 | `[ui.sidebar.agents] separator` | hardcoded `" · "` between tokens | **configurable**, default `" · "` |
 | `[ui.sidebar.agents] indent` | hardcoded `1` (first row) | **configurable**, default `1` |
 | `[ui.sidebar.agents] continuation_indent` | hardcoded `3` (later rows) | **configurable**, default `3` |
+| `[ui.sidebar.agents] wrap` | a row that doesn't fit is truncated | **`wrap = true` word-wraps it** onto more lines; default `false` |
 | `herdr update` / update notices | on | **off** — a stock download would replace this build |
 
 Defaults reproduce stock behaviour exactly, so an unconfigured fork looks like upstream.
@@ -42,6 +43,24 @@ string), `src/ui/sidebar.rs` (`resolved_token_spans` takes it), `src/client/shel
 `src/config.rs` (re-export), plus `src/main.rs` template and
 `docs/next/website/src/data/config-reference.json` so `scripts/config_reference_check.py` stays green.
 The config rides in the already-cloned `agents` struct, so client reload needed no changes.
+
+## Patch: sidebar word wrap
+
+```toml
+[ui.sidebar.agents]
+wrap = true    # a row that doesn't fit wraps onto more lines instead of being truncated
+```
+
+- Greedy word wrap across the row's styled tokens; the space at a break is dropped, and a word
+  wider than the whole sidebar is split where it overflows. Wrapped lines take `continuation_indent`.
+- The entry grows as tall as its lines; the list's scroll math measures rows at the width they
+  are drawn at (one column narrower when a scrollbar shows).
+- Why: agent-dispatcher names each agent's tab after its Timeline Studio task, and those titles
+  don't fit a sidebar line.
+
+Files: `src/config/sidebar.rs` (the key), `src/client/shell/agent_sidebar.rs` (`agent_row_lines`,
+`wrap_spans`, width-aware `render_agent_list`), `src/client/shell/endpoint_agents.rs` (row height),
+plus `src/main.rs` template and `docs/next/website/src/data/config-reference.json`.
 
 ## Updates are off, deliberately
 

@@ -610,6 +610,7 @@ rows = [[{ token = "$load", rules = [{ lt = 50, hide = true }] }], ["workspace"]
         assert_eq!(stock.separator, " · ");
         assert_eq!(stock.indent, 1);
         assert_eq!(stock.continuation_indent, 3);
+        assert!(!stock.wrap);
         let custom: AgentsSidebarConfig =
             toml::from_str("separator = \" \\u001b|\"\nindent = 0\ncontinuation_indent = 0")
                 .unwrap();

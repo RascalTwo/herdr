@@ -444,6 +444,8 @@ pub struct AgentsSidebarConfig {
     pub separator: String,
     pub indent: u16,
     pub continuation_indent: u16,
+    /// Word-wrap a row that doesn't fit onto more lines instead of truncating it (fork-only).
+    pub wrap: bool,
 }
 
 impl AgentsSidebarConfig {
@@ -471,6 +473,7 @@ impl Default for AgentsSidebarConfig {
             separator: DEFAULT_SIDEBAR_SEPARATOR.into(),
             indent: DEFAULT_AGENT_INDENT,
             continuation_indent: DEFAULT_AGENT_CONTINUATION_INDENT,
+            wrap: false,
         }
     }
 }

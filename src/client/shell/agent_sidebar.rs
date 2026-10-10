@@ -79,7 +79,7 @@ pub(super) fn render_agent_panel(
         config,
         agent_scroll,
         hits,
-        |row| row.rows.len(),
+        |row, width| agent_row_lines(row, config, width).len(),
         |buffer, rect, row, hits| {
             hits.agents.push((rect, row.pane_id.clone()));
             render_agent_row(buffer, rect, row, config);
@@ -159,7 +159,7 @@ pub(super) fn render_agent_list<T>(
     config: &ClientShellConfig,
     agent_scroll: &mut usize,
     hits: &mut ShellHitMap,
-    row_lines: impl Fn(&T) -> usize,
+    row_lines: impl Fn(&T, u16) -> usize,
     mut render_row: impl FnMut(&mut Buffer, Rect, &T, &mut ShellHitMap),
 ) {
     let body = Rect::new(
@@ -186,10 +186,14 @@ pub(super) fn render_agent_list<T>(
         return;
     }
 
-    let row_heights = rows
-        .iter()
-        .map(|row| row_lines(row).max(1).min(u16::MAX as usize) as u16)
-        .collect::<Vec<_>>();
+    // Wrapped rows are as tall as the width makes them, and a scrollbar takes a column, so the
+    // heights are measured at full width and again one narrower if they need a scrollbar.
+    let heights = |width: u16| {
+        rows.iter()
+            .map(|row| row_lines(row, width).max(1).min(u16::MAX as usize) as u16)
+            .collect::<Vec<_>>()
+    };
+    let mut row_heights = heights(body.width);
     let gaps = rows
         .iter()
         .enumerate()
@@ -201,8 +205,13 @@ pub(super) fn render_agent_list<T>(
             }
         })
         .collect::<Vec<_>>();
-    let metrics =
+    let mut metrics =
         super::scroll::list_scroll_metrics(&row_heights, &gaps, body.height, *agent_scroll);
+    if metrics.max_offset_from_bottom > 0 && body.width > 1 {
+        row_heights = heights(body.width - 1);
+        metrics =
+            super::scroll::list_scroll_metrics(&row_heights, &gaps, body.height, *agent_scroll);
+    }
     hits.agent_max_scroll = metrics.max_offset_from_bottom;
     hits.agent_scroll_metrics = Some(metrics);
     *agent_scroll = metrics
@@ -324,12 +333,31 @@ pub(super) fn render_agent_row(
     row: &AgentRow,
     config: &ClientShellConfig,
 ) {
-    let palette = &config.palette;
     let row_style = if row.focused {
-        Style::default().bg(palette.active_row_bg)
+        Style::default().bg(config.palette.active_row_bg)
     } else {
         Style::default()
     };
+    for (index, line) in agent_row_lines(row, config, rect.width)
+        .into_iter()
+        .take(rect.height as usize)
+        .enumerate()
+    {
+        Paragraph::new(line).style(row_style).render(
+            Rect::new(rect.x, rect.y + index as u16, rect.width, 1),
+            buffer,
+        );
+    }
+}
+
+/// The screen lines of one agent entry at `width`: one per configured row, truncated to fit,
+/// or with `wrap` on, as many as it takes to show each row whole.
+pub(super) fn agent_row_lines(
+    row: &AgentRow,
+    config: &ClientShellConfig,
+    width: u16,
+) -> Vec<Line<'static>> {
+    let palette = &config.palette;
     let name_style = if row.focused {
         Style::default()
             .fg(palette.text)
@@ -353,14 +381,22 @@ pub(super) fn render_agent_row(
     } else {
         row.rows.clone()
     };
-    for (index, tokens) in rows.iter().take(rect.height as usize).enumerate() {
+    let width = width as usize;
+    let continuation = config.agents.continuation_indent as usize;
+    let mut lines = Vec::new();
+    for (index, tokens) in rows.iter().enumerate() {
         let indent = if index == 0 {
             config.agents.indent as usize
         } else {
-            config.agents.continuation_indent as usize
+            continuation
         };
-        let mut spans = vec![ratatui::text::Span::raw(" ".repeat(indent))];
-        spans.extend(crate::ui::resolved_token_spans(
+        // Wrapping resolves the row at a width nothing exceeds, so no token is cut short.
+        let room = if config.agents.wrap {
+            usize::MAX / 4
+        } else {
+            width.saturating_sub(indent)
+        };
+        let spans = crate::ui::resolved_token_spans(
             tokens,
             icon,
             status_style,
@@ -368,14 +404,104 @@ pub(super) fn render_agent_row(
             secondary,
             secondary,
             palette,
-            rect.width.saturating_sub(indent as u16) as usize,
+            room,
             &config.agents.separator,
-        ));
-        Paragraph::new(Line::from(spans)).style(row_style).render(
-            Rect::new(rect.x, rect.y + index as u16, rect.width, 1),
-            buffer,
         );
+        if !config.agents.wrap {
+            let mut line = vec![ratatui::text::Span::raw(" ".repeat(indent))];
+            line.extend(spans);
+            lines.push(Line::from(line));
+            continue;
+        }
+        let wrapped = wrap_spans(
+            &spans,
+            width.saturating_sub(indent),
+            width.saturating_sub(continuation),
+        );
+        for (part, segment) in wrapped.into_iter().enumerate() {
+            let pad = if part == 0 { indent } else { continuation };
+            let mut line = vec![ratatui::text::Span::raw(" ".repeat(pad))];
+            line.extend(segment);
+            lines.push(Line::from(line));
+        }
     }
+    lines
+}
+
+/// Greedy word wrap across styled spans: `first` columns on the first line, `rest` after.
+/// A space at a break is dropped; a word wider than a whole line is split where it overflows.
+fn wrap_spans(
+    spans: &[ratatui::text::Span<'static>],
+    first: usize,
+    rest: usize,
+) -> Vec<Vec<ratatui::text::Span<'static>>> {
+    use unicode_width::UnicodeWidthChar;
+    let mut lines: Vec<Vec<ratatui::text::Span<'static>>> = vec![Vec::new()];
+    let mut used = 0usize;
+    let room = |line: usize| if line == 0 { first } else { rest }.max(1);
+    let push = |lines: &mut Vec<Vec<ratatui::text::Span<'static>>>, text: &str, style: Style| {
+        let Some(line) = lines.last_mut() else { return };
+        match line.last_mut() {
+            Some(last) if last.style == style => last.content.to_mut().push_str(text),
+            _ => line.push(ratatui::text::Span::styled(text.to_string(), style)),
+        }
+    };
+    for span in spans {
+        let text = span.content.as_ref();
+        let mut pieces = Vec::new();
+        let mut start = 0;
+        for (i, c) in text.char_indices().skip(1) {
+            let prev = text[..i]
+                .chars()
+                .next_back()
+                .is_some_and(char::is_whitespace);
+            if prev != c.is_whitespace() {
+                pieces.push(&text[start..i]);
+                start = i;
+            }
+        }
+        if start < text.len() {
+            pieces.push(&text[start..]);
+        }
+        for piece in pieces {
+            let width = display_width(piece);
+            let space = piece.chars().all(char::is_whitespace);
+            if used + width <= room(lines.len() - 1) {
+                if !(space && used == 0 && lines.len() > 1) {
+                    push(&mut lines, piece, span.style);
+                    used += width;
+                }
+                continue;
+            }
+            if space {
+                lines.push(Vec::new());
+                used = 0;
+                continue;
+            }
+            if used > 0 && width <= room(lines.len()) {
+                // The space that ended the line was pushed while it still fitted; drop it.
+                if let Some(last) = lines.last_mut().and_then(|line| line.last_mut()) {
+                    let kept = last.content.trim_end().len();
+                    last.content.to_mut().truncate(kept);
+                }
+                lines.push(Vec::new());
+                used = 0;
+                push(&mut lines, piece, span.style);
+                used += width;
+                continue;
+            }
+            for c in piece.chars() {
+                let w = c.width().unwrap_or(0);
+                if used + w > room(lines.len() - 1) && used > 0 {
+                    lines.push(Vec::new());
+                    used = 0;
+                }
+                push(&mut lines, c.encode_utf8(&mut [0; 4]), span.style);
+                used += w;
+            }
+        }
+    }
+    lines
 }
 
 fn put_text(buffer: &mut Buffer, x: u16, y: u16, width: u16, text: &str, style: Style) {
@@ -397,5 +523,42 @@ fn sidebar_status_text(status: crate::api::schema::AgentStatus) -> &'static str 
         AgentStatus::Done => "done",
         AgentStatus::Working => "working",
         AgentStatus::Idle | AgentStatus::Unknown => "idle",
+    }
+}
+
+#[cfg(test)]
+mod wrap_tests {
+    use super::wrap_spans;
+    use ratatui::{style::Style, text::Span};
+
+    fn text(lines: &[Vec<Span<'static>>]) -> Vec<String> {
+        lines
+            .iter()
+            .map(|line| line.iter().map(|span| span.content.as_ref()).collect())
+            .collect()
+    }
+
+    #[test]
+    fn wraps_at_word_boundaries_and_drops_the_break_space() {
+        let spans = [Span::raw("✎ add type-aware Oxlint with viz's rule set")];
+        assert_eq!(
+            text(&wrap_spans(&spans, 20, 20)),
+            ["✎ add type-aware", "Oxlint with viz's", "rule set"]
+        );
+    }
+
+    #[test]
+    fn keeps_styles_across_spans_and_splits_an_overlong_word() {
+        let bold = Style::default().add_modifier(ratatui::style::Modifier::BOLD);
+        let spans = [Span::raw("● "), Span::styled("abcdefghijkl", bold)];
+        let lines = wrap_spans(&spans, 6, 6);
+        assert_eq!(text(&lines), ["● abcd", "efghij", "kl"]);
+        assert_eq!(lines[1][0].style, bold);
+    }
+
+    #[test]
+    fn a_row_that_fits_stays_one_line() {
+        let spans = [Span::raw("● short")];
+        assert_eq!(text(&wrap_spans(&spans, 40, 40)), ["● short"]);
     }
 }

@@ -1073,6 +1073,12 @@
           "description": "Text between adjacent tokens in an expanded Agent sidebar row. A state_icon is always followed by a single space. Control characters are dropped. Fork-only."
         },
         {
+          "key": "ui.sidebar.agents.wrap",
+          "type": "boolean",
+          "default": "false",
+          "description": "Word-wrap an Agent sidebar row that doesn't fit onto more lines instead of truncating it; wrapped lines take continuation_indent. Fork-only."
+        },
+        {
           "key": "ui.sidebar.agents.row_gap",
           "type": "integer",
           "default": "0",

@@ -352,6 +352,8 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Leading spaces before the first row, and before the second and later rows (fork-only).
 # indent = 1
 # continuation_indent = 3
+# Word-wrap a row that doesn't fit instead of truncating it; wrapped lines take continuation_indent (fork-only).
+# wrap = false
 # rows = [["state_icon", "machine", "workspace", "tab"], ["agent"]]
 # Optional canonical agent IDs replace the default rows for matching agents.
 # [ui.sidebar.agents.rows_by_agent]

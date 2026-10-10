@@ -15,6 +15,7 @@ makes these configurable itself — then delete the matching patch.
 | `[ui.sidebar.agents] separator` | hardcoded `" · "` between tokens | **configurable**, default `" · "` |
 | `[ui.sidebar.agents] indent` | hardcoded `1` (first row) | **configurable**, default `1` |
 | `[ui.sidebar.agents] continuation_indent` | hardcoded `3` (later rows) | **configurable**, default `3` |
+| `[ui.sidebar.spaces] waiting_first` | a Space's dot is its busiest agent (working beats idle) | **`waiting_first = true`**: an agent waiting on you beats one working; default `false` |
 | `[ui.sidebar.agents] wrap` | a row that doesn't fit is truncated | **`wrap = true` word-wraps it** onto more lines; default `false` |
 | `herdr update` / update notices | on | **off** — a stock download would replace this build |
 
@@ -61,6 +62,23 @@ wrap = true    # a row that doesn't fit wraps onto more lines instead of being t
 Files: `src/config/sidebar.rs` (the key), `src/client/shell/agent_sidebar.rs` (`agent_row_lines`,
 `wrap_spans`, width-aware `render_agent_list`), `src/client/shell/endpoint_agents.rs` (row height),
 plus `src/main.rs` template and `docs/next/website/src/data/config-reference.json`.
+
+## Patch: a Space's dot shows who's waiting on you
+
+```toml
+[ui.sidebar.spaces]
+waiting_first = true   # blocked > done > idle > working, instead of blocked > done > working > idle
+```
+
+- The server rolls each Space up busiest-first, so one working agent hid two idle ones waiting for an
+  answer. With this on, the client rolls the Space's own agents up again (and a collapsed worktree
+  group's) with every state that waits on the human above working. Agent-list order is unchanged.
+- Client-only, so a stock server is fine.
+
+Files: `src/config/sidebar.rs` (the key), `src/client/shell/sidebar.rs` (`displayed_workspace_status`
+takes the Spaces config; `waiting_first_priority`), `src/client/shell/endpoint_sidebar.rs` (passes it),
+a test in `src/client/shell/tests/agents_worktrees_notifications.rs`, and
+`docs/next/website/src/data/config-reference.json`.
 
 ## Updates are off, deliberately
 

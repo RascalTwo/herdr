@@ -321,6 +321,7 @@ pub(super) fn render_expanded(
                                     snapshot,
                                     workspace,
                                     collapsed_groups,
+                                    &config.spaces,
                                 ),
                                 entry.indented,
                                 &config.spaces,
@@ -446,6 +447,7 @@ pub(super) fn render_expanded(
                     snapshot,
                     workspace,
                     collapsed_groups,
+                    &config.spaces,
                 );
                 let tokens = super::sidebar::workspace_rows(
                     workspace,

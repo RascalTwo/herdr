@@ -1462,3 +1462,39 @@ fn semantic_notifications_use_client_policy_and_stable_navigation_targets() {
     assert!(state.visible_notification.is_none());
     assert_eq!(state.pending_notifications.len(), 1);
 }
+
+#[test]
+fn waiting_first_space_status_shows_a_waiting_agent_over_a_working_one() {
+    let mut snap = snapshot();
+    snap.workspaces[0].agent_status = AgentStatus::Working; // the server's busiest-first rollup
+    let agent = |pane: &str, agent_status| ClientShellAgent {
+        pane_id: pane.into(),
+        workspace_id: "ws_1".into(),
+        tab_id: "tab_1".into(),
+        name: None,
+        display_agent: None,
+        agent: None,
+        title: None,
+        terminal_title: None,
+        terminal_title_stripped: None,
+        agent_status,
+        state_change_seq: 1,
+        state_labels: Vec::new(),
+        tokens: Vec::new(),
+        focused: false,
+    };
+    snap.agents = vec![
+        agent("p1", AgentStatus::Working),
+        agent("p2", AgentStatus::Idle),
+    ];
+    let groups = std::collections::HashSet::new();
+    let mut spaces = crate::config::SpacesSidebarConfig::default();
+    let status = |snap: &ClientShellSnapshot, spaces: &crate::config::SpacesSidebarConfig| {
+        sidebar::displayed_workspace_status(snap, &snap.workspaces[0], &groups, spaces)
+    };
+    assert_eq!(status(&snap, &spaces), AgentStatus::Working);
+    spaces.waiting_first = true;
+    assert_eq!(status(&snap, &spaces), AgentStatus::Idle);
+    snap.agents.push(agent("p3", AgentStatus::Blocked));
+    assert_eq!(status(&snap, &spaces), AgentStatus::Blocked);
+}

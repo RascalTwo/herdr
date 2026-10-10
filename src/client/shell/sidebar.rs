@@ -245,7 +245,12 @@ pub(crate) fn render_sidebar(
                 .map(|workspace| {
                     workspace_rows(
                         workspace,
-                        displayed_workspace_status(snapshot, workspace, state.collapsed_groups),
+                        displayed_workspace_status(
+                            snapshot,
+                            workspace,
+                            state.collapsed_groups,
+                            &config.spaces,
+                        ),
                         entry.indented,
                         &config.spaces,
                     )
@@ -303,7 +308,8 @@ pub(crate) fn render_sidebar(
         let Some(workspace) = snapshot.workspaces.get(entry.index) else {
             continue;
         };
-        let status = displayed_workspace_status(snapshot, workspace, state.collapsed_groups);
+        let status =
+            displayed_workspace_status(snapshot, workspace, state.collapsed_groups, &config.spaces);
         let rows = workspace_rows(workspace, status, entry.indented, &config.spaces);
         let row_height = (rows.len().max(1).min(u16::MAX as usize) as u16).min(body.height);
         if y.saturating_add(row_height) > body.bottom() {
@@ -595,6 +601,55 @@ pub(in crate::client::shell) fn render_parent_group_toggle(
 }
 
 pub(in crate::client::shell) fn displayed_workspace_status(
+    snapshot: &ClientShellSnapshot,
+    workspace: &ClientShellWorkspace,
+    collapsed_groups: &HashSet<String>,
+    spaces: &SpacesSidebarConfig,
+) -> crate::api::schema::AgentStatus {
+    let status = rolled_up_workspace_status(snapshot, workspace, collapsed_groups);
+    if !spaces.waiting_first {
+        return status;
+    }
+    // Fork: roll the Space's own agents up again, ranking every state that waits on the human
+    // above working, so one busy agent can't hide others that need an answer.
+    let group = workspace
+        .worktree
+        .as_ref()
+        .filter(|worktree| !worktree.is_linked_worktree && collapsed_groups.contains(&worktree.key))
+        .map(|worktree| worktree.key.as_str());
+    let in_space = |workspace_id: &str| {
+        workspace_id == workspace.workspace_id
+            || group.is_some_and(|key| {
+                snapshot.workspaces.iter().any(|candidate| {
+                    candidate.workspace_id == workspace_id
+                        && candidate
+                            .worktree
+                            .as_ref()
+                            .is_some_and(|worktree| worktree.key == key)
+                })
+            })
+    };
+    snapshot
+        .agents
+        .iter()
+        .filter(|agent| in_space(&agent.workspace_id))
+        .map(|agent| agent.agent_status)
+        .max_by_key(|status| waiting_first_priority(*status))
+        .unwrap_or(status)
+}
+
+fn waiting_first_priority(status: crate::api::schema::AgentStatus) -> u8 {
+    use crate::api::schema::AgentStatus;
+    match status {
+        AgentStatus::Blocked => 4,
+        AgentStatus::Done => 3,
+        AgentStatus::Idle => 2,
+        AgentStatus::Working => 1,
+        AgentStatus::Unknown => 0,
+    }
+}
+
+fn rolled_up_workspace_status(
     snapshot: &ClientShellSnapshot,
     workspace: &ClientShellWorkspace,
     collapsed_groups: &HashSet<String>,

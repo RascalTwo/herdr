@@ -484,6 +484,9 @@ pub struct SpacesSidebarConfig {
     #[serde(deserialize_with = "deserialize_sidebar_rows")]
     pub rows: SpaceSidebarRows,
     pub row_gap: u16,
+    /// A Space's dot shows an agent waiting on the human (blocked, done, idle) over one that's
+    /// working, instead of the busiest one (fork-only).
+    pub waiting_first: bool,
 }
 
 impl Default for SpacesSidebarConfig {
@@ -494,6 +497,7 @@ impl Default for SpacesSidebarConfig {
                 vec![SpaceSidebarToken::Branch, SpaceSidebarToken::GitStatus],
             ],
             row_gap: DEFAULT_SIDEBAR_ROW_GAP,
+            waiting_first: false,
         }
     }
 }

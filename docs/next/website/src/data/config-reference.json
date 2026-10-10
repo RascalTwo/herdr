@@ -1097,6 +1097,12 @@
           "description": "Complete Agent-row overrides keyed by strict canonical agent id. Agents without an override use ui.sidebar.agents.rows."
         },
         {
+          "key": "ui.sidebar.spaces.waiting_first",
+          "type": "boolean",
+          "default": "false",
+          "description": "A Space's status dot shows an agent waiting on you (blocked, done or idle) over one that is working, instead of the busiest agent. Fork-only."
+        },
+        {
           "key": "ui.sidebar.spaces.row_gap",
           "type": "integer",
           "default": "0",

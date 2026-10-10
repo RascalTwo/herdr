@@ -366,6 +366,8 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Blank rows between space entries. Set to 1 to restore the previous spacing.
 # row_gap = 0
 # rows = [["state_icon", "workspace"], ["branch", "git_status"]]
+# Show an agent waiting on you over one that is working in a Space's dot (fork-only).
+# waiting_first = false
 
 # Background notification popup delivery
 [ui.toast]
